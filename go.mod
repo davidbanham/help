@@ -1,4 +1,4 @@
-module help
+module github.com/davidbanham/help
 
 go 1.19
 
