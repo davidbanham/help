@@ -20,4 +20,4 @@ Even [links](https://google.com)
 * lists
 * too
 
-![](./cat_caviar.jpg)
+![and images with alt text!](./cat_caviar.jpg)

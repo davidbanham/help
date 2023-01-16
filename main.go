@@ -43,14 +43,28 @@ var defaultErrHandler = func(w http.ResponseWriter, r *http.Request, code int, m
 	w.Write([]byte(message))
 }
 
-var rootDir = "./"
+var contentDir = "./help"
+var useCustomTemplates bool
+var customTemplateDir string
+var useCustomAssets bool
+var customAssetDir string
 
-func relativePath(target string) string {
-	return rootDir + target
+func relativeContentPath(target string) string {
+	return contentDir + target
 }
 
-func SetPath(path string) {
-	rootDir = path
+func SetContentPath(path string) {
+	contentDir = path
+}
+
+func UseCustomTemplates(path string) {
+	useCustomTemplates = true
+	customTemplateDir = path
+}
+
+func UseCustomAssets(path string) {
+	useCustomAssets = true
+	customAssetDir = path
 }
 
 type Index []HelpTopic
@@ -77,7 +91,11 @@ func index() (Index, error) {
 
 func tmpl() *template.Template {
 	if cachedTmpl == nil {
-		cachedTmpl = template.Must(template.New("main").Funcs(templateFuncMap).ParseGlob(relativePath("/views/*")))
+		if useCustomTemplates {
+			cachedTmpl = template.Must(template.New("main").Funcs(templateFuncMap).ParseGlob(customTemplateDir))
+		} else {
+			cachedTmpl = template.Must(template.New("main").Funcs(templateFuncMap).ParseFS(views, "views/*"))
+		}
 	}
 	return cachedTmpl
 }
@@ -105,7 +123,7 @@ func ServeTopicPage(w http.ResponseWriter, r *http.Request) error {
 func ServeHelpPageAsset(w http.ResponseWriter, r *http.Request) error {
 	topic, asset := path.Split(r.URL.Path)
 
-	p := relativePath(fmt.Sprintf("pages/%s/%s", topic, asset))
+	p := relativeContentPath(fmt.Sprintf("pages/%s/%s", topic, asset))
 
 	_, err := os.Stat(p)
 	if err != nil {
@@ -137,7 +155,7 @@ func (topic *HelpTopic) StubOut() {
 }
 
 func (topic *HelpTopic) Hydrate() error {
-	dat, err := ioutil.ReadFile(relativePath("/pages/" + topic.Name + "/page.md"))
+	dat, err := ioutil.ReadFile(relativeContentPath("/pages/" + topic.Name + "/page.md"))
 	if err != nil {
 		return err
 	}
@@ -187,21 +205,33 @@ func imgUrlPrefixer(slug string) func(w io.Writer, node ast.Node, entering bool)
 }
 
 func ServeHelpAsset(w http.ResponseWriter, r *http.Request) error {
-	p := relativePath("assets/" + r.URL.Path)
+	if useCustomAssets {
+		p := customAssetDir + r.URL.Path
 
-	_, err := os.Stat(p)
-	if err != nil {
-		return err
+		_, err := os.Stat(p)
+		if err != nil {
+			return err
+		}
+
+		http.ServeFile(w, r, p)
+	} else {
+		if r.URL.Path == "/css/main.css" {
+			w.Header().Add("Content-Type", "text/css")
+			_, err := w.Write(cssFile)
+			if err != nil {
+				return err
+			}
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}
-
-	http.ServeFile(w, r, p)
 
 	return nil
 }
 
 func BuildIndex() (Index, error) {
 	ret := Index{}
-	info, err := ioutil.ReadDir(relativePath("/pages"))
+	info, err := ioutil.ReadDir(relativeContentPath("/pages"))
 	if err != nil {
 		return ret, err
 	}
