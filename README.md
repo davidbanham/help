@@ -41,17 +41,17 @@ import (
 )
 
 var errRes = func(w http.ResponseWriter, r *http.Request, code int, message string, err error) {
-  log.Println("Oh no! An error!", code, message, err)
+	log.Println("Oh no! An error!", code, message, err)
 }
 
 func init() {
 	help.SetContentPath("./help/")
 
-  // optional
+	// optional
 	//help.UseCustomAssets("./assets/")
 	//help.UseCustomTemplates("./views/*.html")
 
-  r := mux.NewRouter()
+	r := mux.NewRouter()
 
 	r.Path("/knowledgebase").
 		Methods("GET").
